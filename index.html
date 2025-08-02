@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>แปลงข้อความลูกค้า (เวอร์ชันสมบูรณ์)</title>
+  <style>
+    body { font-family: sans-serif; background: #f8f9fa; padding: 2rem; }
+    .box { max-width: 800px; margin: auto; background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: #2c3e50; }
+    textarea, select, button { width: 100%; font-size: 1rem; margin: 0.5rem 0; padding: 0.75rem; border-radius: 6px; border: 1px solid #ccc; }
+    button { cursor: pointer; border: none; }
+    .btn-green { background: #27ae60; color: white; }
+    .btn-red { background: #c0392b; color: white; }
+    .btn-blue { background: #2980b9; color: white; }
+    pre { background: #f1f2f6; padding: 1rem; white-space: pre-wrap; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>📦 แปลงข้อความลูกค้า (รองรับเขต/แขวง + ลบบรรทัดแอดมิน)</h2>
+    <label>เลือกสินค้า:</label>
+    <select id="productLine">
+      <option>เจลสมุนไพรแก้ปวด Dr.YuTitan 1 แถม 2 / 50ml. / 1 / 0</option>
+      <option>เจลสมุนไพรแก้ปวด Dr.YuTitan 2 แถม 4 / 50ml. / 1 / 0</option>
+      <option>เจลสมุนไพรแก้ปวด Dr.YuTitan 3 แถม 6 / 50ml. / 1 / 0</option>
+      <option>Kreain Nature เจลนวดแก้ปวด 1 แถม 1 / 100ml. / 1 / 0</option>
+      <option>Kreain Nature เจลนวดแก้ปวด 2 แถม 2 / 100ml. / 1 / 0</option>
+      <option>Kreain Nature เจลนวดแก้ปวด 3 แถม 3 / 100ml. / 1 / 0</option>
+    </select>
+
+    <label>เลือกเพจ:</label>
+    <select id="pageLine">
+      <option>Kreain Nature ผู้ช่วยแก้ปวดข้อ</option>
+      <option>เจลสมุนไพรแก้ปวดเรื้อรัง Dr.YuTitan</option>
+    </select>
+
+    <label>วางข้อความลูกค้า:</label>
+    <textarea id="inputText" rows="10" placeholder="วางข้อมูลที่นี่..."></textarea>
+
+    <button class="btn-green" onclick="transformText()">แปลงข้อความ</button>
+    <button class="btn-red" onclick="resetForm()">ล้างข้อมูล</button>
+
+    <pre id="outputText">📋 ผลลัพธ์จะแสดงตรงนี้...</pre>
+    <button class="btn-blue" onclick="copyOutput()">📋 คัดลอกผลลัพธ์</button>
+  </div>
+
+  <script>
+    function transformText() {
+      const lines = document.getElementById("inputText").value.trim().split("\n");
+      const filteredLines = lines.filter(l => !l.includes("📌 แอดมินขอสรุปยอดนะคะ"));
+      const product = document.getElementById("productLine").value;
+      const page = document.getElementById("pageLine").value;
+      const today = new Date().toISOString().split("T")[0];
+      let output = [];
+
+      const code = filteredLines[0]?.trim();
+      const name = filteredLines[1]?.trim();
+      output.push(`=${code}.${name}`);
+      output.push(`=${product}`);
+
+      const cod = filteredLines.find(l => l.toLowerCase().includes("cod"))?.split(":")[1]?.trim() || "";
+      output.push(`=COD/${cod}`);
+
+      const fb = filteredLines.find(l => l.toLowerCase().includes("fb:"))?.split(":")[1]?.trim() || "";
+      const pg = filteredLines.find(l => l.toLowerCase().includes("pg:"))?.split(":")[1]?.trim() || "";
+      const admin = filteredLines.find(l => l.toLowerCase().includes("admin:"))?.split(":")[1]?.trim() || "";
+      const phone = filteredLines.find(l => /^0[689]\d{8}$/.test(l)) || "";
+
+      const zipLine = filteredLines.find(l => /\d{5}/.test(l)) || "";
+      
+    
+    let zip = "";
+    const zipCandidates = filteredLines.filter(l => /\b\d{5}\b/.test(l));
+    if (zipCandidates.length > 0) {
+      zip = zipCandidates[0].match(/\b\d{5}\b/)[0];
+    }
+    
+    if (zipLine.match(/\d{5}/)) {
+      zip = zipLine.match(/\d{5}/)[0];
+    } else {
+      const guessZip = filteredLines.find(l => /\d{5}/.test(l));
+      if (guessZip) zip = guessZip.match(/\d{5}/)[0];
+    }
+    
+      
+    let province = "";
+    if (zipLine.includes("กรุงเทพ") || filteredLines.some(l => l.includes("เขต") || l.includes("แขวง"))) {
+      province = "กรุงเทพมหานคร";
+    } else {
+      const matchProv = zipLine.match(/จ\.\s*(\S+)/);
+      if (matchProv) province = matchProv[1];
+    }
+    
+
+      const khwaeng = filteredLines.find(l => l.includes("แขวง")) || "";
+      const khet = filteredLines.find(l => l.includes("เขต")) || "";
+      const tambon = filteredLines.find(l => l.includes("ต.")) || "";
+      const amphur = filteredLines.find(l => l.includes("อ.")) || "";
+      const addressLines = filteredLines.filter(l => !l.startsWith(code) && !l.startsWith(name) && !l.includes("COD") && !l.includes("Fb") && !l.includes("Pg") && !l.includes("Admin") && !/^0[689]/.test(l) && !/\d{5}/.test(l) && !l.includes("จังหวัด"));
+
+      let fullAddress = addressLines.join(" ");
+      
+    if (province === "กรุงเทพมหานคร") {
+        if (!khwaeng.includes("แขวง")) khwaeng = "แขวง" + khwaeng;
+        if (!khet.includes("เขต")) khet = "เขต" + khet;
+    
+        fullAddress += ` ${khwaeng} ,${khet}`;
+      } else {
+        
+    if (!tambon.includes("ต.")) tambon = "ต." + tambon;
+    if (!amphur.includes("อ.")) amphur = "อ." + amphur;
+    fullAddress += ` ${tambon} ,${amphur}`;
+    
+      }
+
+      output.push("=" + fullAddress.trim());
+      output.push("=" + province);
+      output.push("=" + zip);
+      output.push("=" + phone);
+      output.push("=" + fb);
+      output.push("=" + admin);
+      output.push("=" + page);
+      output.push("=" + today);
+
+      document.getElementById("outputText").textContent = output.join("\n");
+    }
+
+    function resetForm() {
+      document.getElementById("inputText").value = "";
+      document.getElementById("outputText").textContent = "📋 ผลลัพธ์จะแสดงตรงนี้...";
+    }
+
+    function copyOutput() {
+      const text = document.getElementById("outputText").textContent;
+      navigator.clipboard.writeText(text).then(() => alert("✅ คัดลอกผลลัพธ์แล้ว!"));
+    }
+  </script>
+</body>
+</html>
